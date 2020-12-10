@@ -7,23 +7,25 @@ import tweepy
 from bs4 import BeautifulSoup
 import twitter_info
 from datetime import datetime
+import string
 
 consumer_key_f = twitter_info.consumer_key_f
 consumer_key_secret_f = twitter_info.consumer_key_secret_f
 access_token_f = twitter_info.access_token_f
 access_token_secret_f = twitter_info.access_token_secret_f
 
+#reminder: delete the dates table you made
+
 def save_to_database(tw_text, cur, conn):
     cur.execute("DROP TABLE IF EXISTS Tweets")
-    cur.execute("CREATE TABLE Tweets (tweet_text TEXT, tweet_date TEXT, month_id INTEGER)")
+    cur.execute("CREATE TABLE Tweets (tweet_text TEXT, date TEXT)")
     for i in range(len(tw_text)):
         timestamp = tw_text[i][1]
         date = timestamp.strftime("%m/%d/%Y")
-        month_id = timestamp.strftime("%m")
         tweet_text = parse_tweet(tw_text[i][0])
-        if not tweet_text.startswith("rt"):     #getting rid of retweets
-            cur.execute('''INSERT INTO Tweets (tweet_text, tweet_date, month_id) 
-                VALUES (?, ?, ?)''', (tweet_text, date, month_id)) 
+        if not tweet_text.startswith("rt"): 
+            cur.execute('''INSERT INTO TWEETS (tweet_text, date)
+                VALUES (?, ?)''', (tweet_text, date))
         conn.commit()
 
 #function to parse through tweet text and get rid of unnecessary info
@@ -34,6 +36,34 @@ def parse_tweet(tweet_text):
         words = words[:-1]
     tweet = " ".join(words)
     return tweet
+
+
+#counts the occurrences for each words, returns a dictionary
+def count_words(cur, conn):
+    full_path = os.path.join(os.path.dirname(__file__), "stopwords.txt")
+    f = open(full_path, "r")
+    lines = f.readlines()
+    f.close()
+    stop_words = []
+    for word in lines:
+        word = word.strip()
+        stop_words.append(word)
+    word_counts = {}
+    cur.execute("SELECT tweet_text FROM Tweets")
+    try:
+        tweets = cur.fetchall()
+        for tweet in tweets:
+            tweet = tweet[0]
+            tweet = tweet.strip(string.punctuation)
+            words = tweet.split()
+            for word in words:
+                if word not in stop_words:
+                    word_counts[word] = word_counts.get(word, 0) + 1
+        return word_counts
+    except:
+        print("Error: couldn't retrieve tweet texts")
+        return {}
+
 
 auth = tweepy.OAuthHandler(consumer_key_f, consumer_key_secret_f)
 auth.set_access_token(access_token_f, access_token_secret_f)
@@ -46,13 +76,15 @@ cur = conn.cursor()
 
 hashtag = "#michiganfootball"
 start_date = "2020-09-26"
-end_date = "2020-12-08"
+end_date = "2020-12-09" #this date gives more items
 tweets = tweepy.Cursor(api.search, q = hashtag, lang = "en", since = start_date, until = end_date, tweet_mode = "extended").items(500)
 tw_text = []
 for tweet in tweets:
     text_date = (tweet.full_text, tweet.created_at)
     tw_text.append(text_date)
-
 save_to_database(tw_text, cur, conn)
-#only getting 97 items in db rn (exclude tweets)
+word_counts_dict = count_words(cur, conn)
+print(word_counts_dict) #going to have to add our own stop words
+
+
 conn.close()
