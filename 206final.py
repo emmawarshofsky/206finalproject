@@ -80,10 +80,10 @@ def count_words(cur, conn):
     
 def tweet_analysis(cur, conn):
     cur.execute("SELECT * FROM Tweets")
-    text_tpls = cur.fetchall()[0]
+    text_tpls = cur.fetchall()
     sid = SentimentIntensityAnalyzer()
-    for text in text_tpls:
-        analysis = sid.polarity_scores(text)
+    for tweet in text_tpls:
+        analysis = sid.polarity_scores(tweet[0])
         positive_score = analysis["pos"]
         negative_score = analysis["neg"]
         neutral_score = analysis["neu"]
