@@ -77,19 +77,28 @@ def count_words(cur, conn):
     except:
         print("Error: couldn't retrieve tweet texts")
         return {}
-    
+
 def tweet_analysis(cur, conn):
-    cur.execute("SELECT * FROM Tweets")
-    text_tpls = cur.fetchall()
-    sid = SentimentIntensityAnalyzer()
-    for tweet in text_tpls:
-        analysis = sid.polarity_scores(tweet[0])
-        positive_score = analysis["pos"]
-        negative_score = analysis["neg"]
-        neutral_score = analysis["neu"]
-        average = analysis["compound"]
-        print(positive_score, negative_score, neutral_score, average)
-    
+    i = 1
+    overall_scores = {} #dict of dicts, keys are dates, values dict with the sum
+    while i <= 8:
+        date = "12/0{}/2020".format(str(i))
+        cur.execute("SELECT tweet_text FROM Tweets WHERE date = ?", (date, ))
+        text_tpls = cur.fetchall()
+        pos_sum = 0.0
+        neg_sum = 0.0
+        num_tweets = 0
+        for tweet in text_tpls:
+            sid = SentimentIntensityAnalyzer()
+            analysis = sid.polarity_scores(tweet[0])
+            num_tweets += 1
+            pos_sum += analysis["pos"] * 100
+            neg_sum += analysis["neg"] * 100
+        pos_avg = float(pos_sum / num_tweets)
+        neg_avg = float(neg_sum / num_tweets)
+        day_dict = {"positive average": pos_avg, "negative average": neg_avg}
+        overall_scores[date] = day_dict
+    print(overall_scores)
     #if this works could get rid of word counts
     pass
 
