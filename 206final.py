@@ -9,9 +9,11 @@ from bs4 import BeautifulSoup
 import twitter_info
 from datetime import datetime
 import string
+
 import nltk
+nltk.downloader.download('vader_lexicon')
 from nltk.sentiment import SentimentAnalyzer
-from nltk.sentiment import SentimentIntensityAnalyzer
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
 
 
 consumer_key_f = twitter_info.consumer_key_f
@@ -76,15 +78,20 @@ def count_words(cur, conn):
         print("Error: couldn't retrieve tweet texts")
         return {}
     
-    def tweet_analysis(cur, conn):
-        cur.execute("SELECT * FROM Tweets")
-        text_tpls = cur.fetchall()[0]
-        sid = SentimentIntensityAnalyzer()
-        for text in text_tpls:
-            score = sid.polarity_scores(text)
-            print(score)
-
-        pass
+def tweet_analysis(cur, conn):
+    cur.execute("SELECT * FROM Tweets")
+    text_tpls = cur.fetchall()[0]
+    sid = SentimentIntensityAnalyzer()
+    for text in text_tpls:
+        analysis = sid.polarity_scores(text)
+        positive_score = analysis["pos"]
+        negative_score = analysis["neg"]
+        neutral_score = analysis["neu"]
+        average = analysis["compound"]
+        print(positive_score, negative_score, neutral_score, average)
+    
+    #if this works could get rid of word counts
+    pass
 
 auth = tweepy.OAuthHandler(consumer_key_f, consumer_key_secret_f)
 auth.set_access_token(access_token_f, access_token_secret_f)
