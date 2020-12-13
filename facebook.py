@@ -21,13 +21,18 @@ def save_to_database(post_dict_list, cur, conn):
 
 
 #returns list of posts
+#are we supposed to be storing this all in database immediately?
 def get_posts(url):
     resp = requests.get(url)
     soup = BeautifulSoup(resp.content, "html.parser")
-    posts = soup.find_all('p', id= "m_group_stories_container")
+    print(soup.text)
+    #print(soup.prettify())
+    #posts = soup.find_all('p', id= "m_group_stories_container")
+    posts = soup.find(id = "m_group_stories_container").find_all("p")
     post_contents = []
-    for item in posts[0:101]:
-        post_contents.append(item.text)
+    for post in posts[0:101]:
+        #p = post.find("p")
+        post_contents.append(post.text)
     return post_contents
 
 #returns rent of listing if included in post, returns empty string if not found
@@ -69,4 +74,5 @@ path = os.path.dirname(os.path.abspath(__file__))
 conn = sqlite3.connect(path + '/' + 'finalproject.db')
 cur = conn.cursor()
 
-create_post_dict_list(get_posts(group_url))
+post_dict_list = create_post_dict_list(get_posts(group_url))
+print(post_dict_list)
