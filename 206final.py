@@ -3,7 +3,6 @@ import sys
 import requests
 import sqlite3
 import os
-import json
 import tweepy
 import csv
 from bs4 import BeautifulSoup
@@ -16,6 +15,8 @@ nltk.downloader.download('vader_lexicon')
 from nltk.sentiment import SentimentAnalyzer
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 
+import matplotlib.pyplot as plt
+import numpy as np
 
 consumer_key_f = twitter_info.consumer_key_f
 consumer_key_secret_f = twitter_info.consumer_key_secret_f
@@ -51,7 +52,7 @@ def parse_tweet(tweet_text):
 
 
 #counts the occurrences for each words, returns a dictionary
-#DELETE THIS FUNCTION?
+#DELETE THIS FUNCTION: or use for bonus visualization
 def count_words(cur, conn):
     full_path = os.path.join(os.path.dirname(__file__), "stopwords.txt")
     f = open(full_path, "r")
@@ -116,7 +117,7 @@ def tweet_analysis(cur, conn):
 
 def write_to_csv(twitter_data, filename):
     with open(filename, "w") as outfile:
-        csv_writer = csv.writer(outfile, delimiter = ",")
+        csv_writer = csv.writer(outfile, delimiter = ",", lineterminator = '\n')
         headers = ["Date", "Average Positive Score", "Average Negative Score", "Average Neutral Score", "Overall Average"]
         csv_writer.writerow(headers)
         for day in list(twitter_data.items()):
@@ -126,6 +127,40 @@ def write_to_csv(twitter_data, filename):
                 row.append(score[1])
             csv_writer.writerow(row)
 
+def make_bar_chart(infile, draw_file):
+    root_path = os.path.dirname(os.path.abspath(__file__)) + os.sep
+    f = os.path.join(root_path, infile)
+    csv_file = open(f, "r")
+    lines = csv_file.readlines()
+    csv_file.close()
+    
+    pos_scores = []
+    neg_scores = []
+    avg_scores = []
+    for line in lines:
+        if line == lines[0]:
+            continue
+        if line.strip() != '':
+            cols = line.split(",")
+            pos_scores.append(cols[1])
+            neg_scores.append(cols[2])
+            avg_scores.append(cols[-1])
+
+    fig, ax = plt.subplots()
+    num_groups = 8
+    width = 0.35
+    ind = np.arange(num_groups)
+    ax.bar(ind - width, neg_scores, width, color = "red", label = "Negative Score")
+    ax.bar(ind, pos_scores, width, color = "green", label = "Positive Score")
+    ax.bar(ind + width, avg_scores, width, color = "blue", label = "Average Score")
+    
+    ax.set_ylabel("Sentiment Scores")
+    ax.set_title("Sentiment Scores about Michigan Football: Grouped by Date and Feeling")
+    ax.set_xticks(ind + width / 3)
+    ax.set_xticklabels(["12/03/2020", "12/04/2020", "12/05/2020", "12/06/2020", "12/07/2020", "12/08/2020", "12/09/2020", "12/10/2020"])
+    ax.grid()
+    fig.savefig(draw_file)
+    plt.show()
 
 
 
@@ -152,5 +187,5 @@ save_to_database(tw_text, cur, conn)
 
 twitter_data = tweet_analysis(cur, conn)
 write_to_csv(twitter_data, "twitter_sentiments.csv")
-
+make_bar_chart("twitter_sentiments.csv", "SentimentScores.png")
 conn.close()

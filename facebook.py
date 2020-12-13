@@ -27,14 +27,14 @@ def save_to_database(post_dict_list, cur, conn):
 def get_posts(url):
     resp = requests.get(url)
     soup = BeautifulSoup(resp.content, "html.parser")
-    print(soup.text)
-    #print(soup.prettify())
-    #posts = soup.find_all('p', id= "m_group_stories_container")
-    posts = soup.find(id = "m_group_stories_container").find_all("p")
+    tags = soup.find_all("div", id = "m_group_stories_container")
+    posts = tags.find_all("div", class_="bq")
     post_contents = []
     for post in posts:
-        #p = post.find("p")
-        post_contents.append(post.text)
+        post_text = post.find("p")
+        if post_text != None:
+            post_contents.append(post.find("p").text)
+    print(post_contents)
     return post_contents
 
 #returns rent of listing if included in post, returns empty string if not found
