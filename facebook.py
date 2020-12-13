@@ -14,7 +14,9 @@ def save_to_database(post_dict_list, cur, conn):
     idnumber = 0
     for i in post_dict_list:
         if 'rent' in i and 'type' in i:
-            idnumber +=1 
+            idnumber +=1
+            if idnumber > 100:
+                break
             cur.execute('''INSERT INTO Facebook (post_id, post_text, rent, housing_type) VALUES (?, ?, ?, ?)''', (idnumber, i['text'], i['rent'], i['type']))
         conn.commit()
     conn.close()
@@ -30,7 +32,7 @@ def get_posts(url):
     #posts = soup.find_all('p', id= "m_group_stories_container")
     posts = soup.find(id = "m_group_stories_container").find_all("p")
     post_contents = []
-    for post in posts[0:101]:
+    for post in posts:
         #p = post.find("p")
         post_contents.append(post.text)
     return post_contents
