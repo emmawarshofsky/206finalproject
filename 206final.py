@@ -9,6 +9,7 @@ from bs4 import BeautifulSoup
 import twitter_info
 from datetime import datetime
 import string
+import re
 
 import nltk
 nltk.downloader.download('vader_lexicon')
@@ -23,18 +24,26 @@ consumer_key_secret_f = twitter_info.consumer_key_secret_f
 access_token_f = twitter_info.access_token_f
 access_token_secret_f = twitter_info.access_token_secret_f
 
-#reminder: delete the dates table you made
 
 def save_to_database(tw_text, cur, conn):
     cur.execute("CREATE TABLE IF NOT EXISTS Tweets (tweet_text TEXT, date TEXT)")
+    cur.execute("SELECT tweet_text FROM Tweets")
+    rows = cur.fetchall()
+    #count = 0
     for i in range(len(tw_text)):
-        timestamp = tw_text[i][1]
-        date = timestamp.strftime("%m/%d/%Y")
         tweet_text = parse_tweet(tw_text[i][0])
-        if not tweet_text.startswith("rt"): 
-            cur.execute('''INSERT INTO TWEETS (tweet_text, date)
-                VALUES (?, ?)''', (tweet_text, date))
-        conn.commit()
+        in_database = False
+        for row in rows:
+            if row[0] == tweet_text:
+                in_database = True
+        if (in_database == False): #and (count < 25):
+            timestamp = tw_text[i][1]
+            date = timestamp.strftime("%m/%d/%Y")
+            if not tweet_text.startswith("rt"): 
+                cur.execute('''INSERT INTO TWEETS (tweet_text, date)
+                    VALUES (?, ?)''', (tweet_text, date))
+            conn.commit()
+            #count += 1
 
 #function to parse through tweet text and get rid of unnecessary info
 def parse_tweet(tweet_text):
@@ -50,40 +59,19 @@ def parse_tweet(tweet_text):
     return tweet
 
 
-#counts the occurrences for each words, returns a dictionary
-#DELETE THIS FUNCTION: or use for bonus visualization
-def count_words(cur, conn):
-    full_path = os.path.join(os.path.dirname(__file__), "stopwords.txt")
-    f = open(full_path, "r")
-    lines = f.readlines()
-    f.close()
-    stop_words = []
-    for word in lines:
-        word = word.strip()
-        stop_words.append(word)
-    word_counts = {}
-    cur.execute("SELECT tweet_text FROM Tweets")
-    try:
-        tweets = cur.fetchall()
-        for tweet in tweets:
-            tweet = tweet[0]
-            tweet = tweet.translate(str.maketrans('', '', string.punctuation))
-            tweet = tweet.translate(str.maketrans('', '', '1234567890'))
-            words = tweet.split()
-            for word in words:
-                if word not in stop_words:
-                    word_counts[word] = word_counts.get(word, 0) + 1
-        word_counts = dict(sorted(word_counts.items(), key = lambda x: x[1], reverse = True))
-        return word_counts
-    except:
-        print("Error: couldn't retrieve tweet texts")
-        return {}
-
-def tweet_analysis(cur, conn):
-    i = 2
+def tweet_analysis(end_date, cur, conn):
+    day = end_date[5:7]
+    if day.startswith('0'):
+        day = int(day[1])
+    else:
+        day = int(day)
+    i = day - 7
     overall_scores = {} #dict of dicts, keys are dates, values dict with the sum
-    while i <= 9:
-        date = "12/0{}/2020".format(str(i))
+    while i <= day:
+        if i < 10:
+            date = "12/0{}/2020".format(str(i))
+        else:
+            date = "12/{}/2020".format(str(i))
         cur.execute("SELECT tweet_text FROM Tweets WHERE date = ?", (date, ))
         try:
             text_tpls = cur.fetchall()
@@ -141,22 +129,26 @@ def make_bar_chart(infile, draw_file):
             continue
         if line.strip() != '':
             cols = line.split(",")
-            pos_scores.append(cols[1])
-            neg_scores.append(cols[2])
-            avg_scores.append(cols[-1])
+            pos_scores.append(float(cols[1]))
+            neg_scores.append(float(cols[2]))
+            avg_scores.append(float(cols[-1]))
+    data = [neg_scores, pos_scores, avg_scores]
 
     fig, ax = plt.subplots()
     num_groups = 8
-    width = 0.35
+    width = 0.25
     ind = np.arange(num_groups)
-    ax.bar(ind - width, neg_scores, width, color = "red", label = "Negative Score")
-    ax.bar(ind, pos_scores, width, color = "green", label = "Positive Score")
-    ax.bar(ind + width, avg_scores, width, color = "blue", label = "Average Score")
+
+    neg = ax.bar(ind - width, data[0], width = width, color = "red", label = "Negative Score")
+    pos = ax.bar(ind, data[1], width = width, color = "green", label = "Positive Score")
+    avg = ax.bar(ind + width, data[2], width = width, color = "blue", label = "Average Score")
     
-    ax.set_ylabel("Sentiment Scores")
-    ax.set_title("Sentiment Scores about Michigan Football: Grouped by Date and Feeling")
     ax.set_xticks(ind + width / 3)
-    ax.set_xticklabels(["12/03/2020", "12/04/2020", "12/05/2020", "12/06/2020", "12/07/2020", "12/08/2020", "12/09/2020", "12/10/2020"])
+    ax.set_xticklabels(("12/06/2020", "12/07/2020", "12/08/2020", "12/09/2020", "12/10/2020", "12/11/2020", "12/12/2020", "12/13/2020"))
+    ax.legend((neg[0], pos[0], avg[0]), ("Negative Score", "Positive Score", "Average Score"))
+    ax.autoscale_view()
+
+    ax.set(xlabel = "Date", ylabel= "Sentiment Scores", title = "Tweets about Michigan Football: Grouped by Date and Sentiment")
     ax.grid()
     fig.savefig(draw_file)
     plt.show()
@@ -173,18 +165,15 @@ conn = sqlite3.connect(path + '/' + 'finalproject.db')
 cur = conn.cursor()
 
 hashtag = "#michiganfootball"
-start_date = "2020-09-26"
-end_date = "2020-12-10" #this date gives more items
-tweets = tweepy.Cursor(api.search, q = hashtag, lang = "en", since = start_date, until = end_date, tweet_mode = "extended").items(500)
+end_date = input("Enter today's date in format: YYYY-MM-DD")
+tweets = tweepy.Cursor(api.search, q = hashtag, lang = "en", until = end_date, tweet_mode = "extended").items(500)
 tw_text = []
 for tweet in tweets:
     text_date = (tweet.full_text, tweet.created_at)
     tw_text.append(text_date)
 save_to_database(tw_text, cur, conn)
-#word_counts_dict = count_words(cur, conn)
-#print(word_counts_dict) #going to have to add our own stop words
 
-twitter_data = tweet_analysis(cur, conn)
+twitter_data = tweet_analysis(end_date, cur, conn)
 write_to_csv(twitter_data, "twitter_sentiments.csv")
 make_bar_chart("twitter_sentiments.csv", "SentimentScores.png")
 conn.close()
