@@ -72,17 +72,17 @@ def create_text_table(filtered_sentences, cur, conn):
     cur.execute("CREATE TABLE IF NOT EXISTS Wikipedia (sentence TEXT, category_id INTEGER)")
     cur.execute("SELECT sentence FROM Wikipedia")
     rows = cur.fetchall()
-    #count = 0
+    count = 0
     for sentence in filtered_sentences:
         in_database = False
         for row in rows:
             if sentence == row[0]:
                 in_database = True
-        if (in_database == False): #and (count < 25):
+        if (in_database == False) and (count < 25):
             words = sentence.split()
             found_category = False
             word_idx = 0
-            while (found_category == False) and (word_idx < len(words)): #and (count < 25)
+            while (found_category == False) and (word_idx < len(words)) and (count < 25):
                 category = find_category(words[word_idx])
                 word_idx += 1
                 if category != None:
@@ -92,7 +92,8 @@ def create_text_table(filtered_sentences, cur, conn):
                         (sentence, category_id))
                     conn.commit()
                     found_category = True
-                    #count += 1
+                    count += 1
+                    
 #identify category
 def find_category(word):
     for category in list(covid_keywords.items()):
