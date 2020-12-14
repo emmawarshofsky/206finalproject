@@ -26,8 +26,7 @@ access_token_secret_f = twitter_info.access_token_secret_f
 #reminder: delete the dates table you made
 
 def save_to_database(tw_text, cur, conn):
-    cur.execute("DROP TABLE IF EXISTS Tweets")
-    cur.execute("CREATE TABLE Tweets (tweet_text TEXT, date TEXT)")
+    cur.execute("CREATE TABLE IF NOT EXISTS Tweets (tweet_text TEXT, date TEXT)")
     for i in range(len(tw_text)):
         timestamp = tw_text[i][1]
         date = timestamp.strftime("%m/%d/%Y")
